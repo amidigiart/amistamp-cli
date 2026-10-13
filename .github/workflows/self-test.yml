@@ -1,0 +1,41 @@
+name: self-test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: pip install --quiet cryptography pytest
+      - run: python -m pytest -q
+
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stamp this commit with the action itself (one-time key)
+        id: stamp
+        uses: ./
+        with:
+          meaning: amistamp CLI ${{ github.sha }}
+          intent: Self-test of the AmiStamp GitHub Action
+      - name: Check the outputs
+        run: |
+          test -f "${{ steps.stamp.outputs.proof }}"
+          test -f "${{ steps.stamp.outputs.manifest }}"
+          echo "${{ steps.stamp.outputs.stamp-hash }}" | grep -Eq '^[0-9a-f]{64}$'
+          python3 -m amistamp verify "${{ steps.stamp.outputs.proof }}" --file "${{ steps.stamp.outputs.manifest }}"

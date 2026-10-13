@@ -1,0 +1,90 @@
+name: AmiStamp release
+description: Stamp what a release means and why you made it. Signs a manifest of every tracked file; optional public date on Tezos.
+author: Mihai Roșca / BRIDGRAI
+branding:
+  icon: check-circle
+  color: orange
+
+inputs:
+  meaning:
+    description: What this release is.
+    required: true
+  intent:
+    description: Why you made it.
+    required: true
+  key:
+    description: Your signing key (PEM), from a secret such as secrets.AMISTAMP_KEY. Without it a one-time key is used and the proof is not tied to you.
+    required: false
+    default: ""
+  rev:
+    description: Git revision to stamp.
+    required: false
+    default: ${{ github.sha }}
+  output-dir:
+    description: Where to write the proof and the manifest.
+    required: false
+    default: amistamp-proofs
+  upload-to-release:
+    description: On a release event, attach the proof and the manifest to the release (needs contents write permission).
+    required: false
+    default: "true"
+
+outputs:
+  proof:
+    description: Path of the proof (.amistamp.json).
+    value: ${{ steps.stamp.outputs.proof }}
+  manifest:
+    description: Path of the manifest (.manifest.txt).
+    value: ${{ steps.stamp.outputs.manifest }}
+  stamp-hash:
+    description: The stamp hash (what goes on Tezos if you anchor).
+    value: ${{ steps.stamp.outputs.stamp_hash }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install amistamp
+      shell: bash
+      run: python3 -m pip install --quiet --disable-pip-version-check "$GITHUB_ACTION_PATH"
+
+    - name: Stamp
+      id: stamp
+      shell: bash
+      env:
+        AMISTAMP_KEY: ${{ inputs.key }}
+        AMISTAMP_HOME: ${{ runner.temp }}/amistamp-home
+        IN_MEANING: ${{ inputs.meaning }}
+        IN_INTENT: ${{ inputs.intent }}
+        IN_REV: ${{ inputs.rev }}
+        IN_DIR: ${{ inputs.output-dir }}
+      run: |
+        if [ -z "$AMISTAMP_KEY" ]; then
+          echo "::warning title=AmiStamp::No key given: using a one-time key. Add your key as the secret AMISTAMP_KEY so proofs are tied to you."
+        fi
+        python3 -m amistamp git "$IN_REV" -m "$IN_MEANING" -i "$IN_INTENT" -o "$IN_DIR"
+        commit=$(git rev-parse --verify "$IN_REV^{commit}")
+        base="$IN_DIR/amistamp-${commit:0:12}"
+        python3 -m amistamp verify "$base.amistamp.json" --git "$IN_REV" --offline
+        hash=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1],encoding='utf-8'))['stamp_hash'])" "$base.amistamp.json")
+        {
+          echo "proof=$base.amistamp.json"
+          echo "manifest=$base.manifest.txt"
+          echo "stamp_hash=$hash"
+        } >> "$GITHUB_OUTPUT"
+        {
+          echo "### AmiStamp"
+          echo "- commit \`$commit\`"
+          echo "- stamp hash \`$hash\`"
+          echo "- proof \`$base.amistamp.json\`"
+          echo ""
+          echo "Verify: \`amistamp verify $base.amistamp.json --git $commit\` or on https://amistampai.com (upload the manifest as the document)."
+          echo "Public date: upload the proof on amistampai.com, Verify, then *Anchor this proof on Tezos*."
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Attach to release
+      if: github.event_name == 'release' && inputs.upload-to-release == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TAG: ${{ github.event.release.tag_name }}
+      run: gh release upload "$TAG" "${{ steps.stamp.outputs.proof }}" "${{ steps.stamp.outputs.manifest }}" --clobber --repo "$GITHUB_REPOSITORY"

@@ -48,6 +48,17 @@ def test_key_is_reused(tmp_path):
     assert core.public_jwk(k1) == core.public_jwk(k2)
 
 
+def test_key_from_environment(tmp_path, monkeypatch):
+    k, _ = core.load_or_create_key()
+    from cryptography.hazmat.primitives import serialization
+    pem = k.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()).decode()
+    monkeypatch.setenv("AMISTAMP_HOME", str(tmp_path / "other"))
+    monkeypatch.setenv("AMISTAMP_KEY", pem)
+    k2, created = core.load_or_create_key()
+    assert not created and core.public_jwk(k2) == core.public_jwk(k)
+    assert not (tmp_path / "other").exists()  # nothing written to disk in CI
+
+
 def test_created_at_matches_js_iso_format():
     import re
     assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z", core.iso_now())
