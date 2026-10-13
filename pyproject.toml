@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "amistamp"
+version = "0.1.0"
+description = "Stamp what your code means and why you made it. Local signing, optional Tezos anchor; proofs verify on amistampai.com."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+authors = [{ name = "Mihai Roșca" }]
+dependencies = ["cryptography>=41"]
+
+[project.scripts]
+amistamp = "amistamp.cli:main"
+
+[tool.setuptools]
+packages = ["amistamp"]
