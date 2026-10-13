@@ -35,6 +35,39 @@ amistamp anchor design.pdf.amistamp.json
 - **`amistamp-<commit>.manifest.txt`:** each tracked file with the SHA-256 of its exact bytes, plus the commit and tree ids.
 - **`amistamp-<commit>.amistamp.json`:** the signed proof. Its `doc_hash` is the SHA-256 of the manifest. On the website, upload the manifest as "the document".
 
+## GitHub Action
+
+Stamp every release automatically. The proof and manifest are attached to the release.
+
+```yaml
+# .github/workflows/amistamp.yml
+on:
+  release:
+    types: [published]
+permissions:
+  contents: write
+jobs:
+  stamp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: amidigiart/amistamp-cli@v0
+        with:
+          meaning: ${{ github.event.release.name }}
+          intent: Authorship record of this release
+          key: ${{ secrets.AMISTAMP_KEY }}
+```
+
+The key: put your own signing key in the repository secret `AMISTAMP_KEY`, from your machine:
+
+```bash
+gh secret set AMISTAMP_KEY --repo OWNER/REPO < ~/.amistamp/key.pem
+```
+
+Without it the action uses a one-time key. The proof is still valid, but it is not tied to you.
+
+Outputs: `proof`, `manifest`, `stamp-hash`. For a public date, upload the proof on amistampai.com → Verify → *Anchor this proof on Tezos*, or use `amistamp anchor`.
+
 ## Anchoring
 
 `amistamp anchor` never holds a Tezos key. If the stamp hash is not yet on Tezos, it prints the call to make from your own account to the public registry `KT1DhusJXS7BAwM81XS59eAQ6jxijB82bRbJ` (mainnet, entrypoint `default`, parameter = the stamp hash as bytes; the first anchor wins). Run it again afterwards: it finds the operation on TzKT and records it in the proof.

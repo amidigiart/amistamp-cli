@@ -68,7 +68,11 @@ def key_fingerprint(pub):
 
 
 def load_or_create_key():
-    """The signing key lives only on this machine: ~/.amistamp/key.pem (or $AMISTAMP_HOME)."""
+    """The signing key lives only on this machine: ~/.amistamp/key.pem (or $AMISTAMP_HOME).
+    In CI it can come from the AMISTAMP_KEY environment variable (the PEM text, e.g. a repository secret)."""
+    env = os.environ.get("AMISTAMP_KEY", "").strip()
+    if env:
+        return serialization.load_pem_private_key(env.encode(), password=None), False
     d = key_dir()
     p = d / "key.pem"
     if p.exists():
