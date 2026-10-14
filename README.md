@@ -85,4 +85,6 @@ Outputs: `proof`, `manifest`, `stamp-hash`. For a public date, upload the proof 
 
 ## Licence
 
-Commercial licence; see `LICENSE`. © 2024–2026 Mihai Roșca / BRIDGRAI.
+Code: Apache License 2.0 (see `LICENSE` and `NOTICE`). The proof format description ("Verify by hand" and the `amistamp-proof-2` fields): CC BY 4.0. © 2026 Mihai Roșca / BRIDGRAI.
+
+The AmiStampAI website and its analysis services are separate and not covered by this licence.
